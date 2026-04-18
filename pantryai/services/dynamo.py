@@ -194,7 +194,7 @@ def list_all_recipes_cached():
     return items
 
 
-def create_recipe(title, ingredients, instructions="", cuisine="", tags=None, prep_time_mins=0, servings=4):
+def create_recipe(title, ingredients, instructions="", cuisine="", tags=None, prep_time_mins=0, servings=4, image_url=""):
     """Create a new recipe from user input."""
     recipe_id = _new_id()
     recipe = {
@@ -216,6 +216,8 @@ def create_recipe(title, ingredients, instructions="", cuisine="", tags=None, pr
     }
     if tags:
         recipe["tags"] = set(tags)
+    if image_url:
+        recipe["image_url"] = image_url.strip()
     _table("recipes").put_item(Item=recipe)
     _recipe_cache["data"] = None
     return _from_decimal(recipe)

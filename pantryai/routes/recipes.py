@@ -39,6 +39,7 @@ def add_recipe():
         tags=data.get("tags", []),
         prep_time_mins=data.get("prep_time_mins", 0),
         servings=data.get("servings", 4),
+        image_url=data.get("image_url", ""),
     )
     return jsonify({"success": True, "data": recipe}), 201
 
@@ -233,6 +234,73 @@ def smart_suggestions():
 
     suggestions = get_smart_grocery_suggestions(missing_by_recipe)
     return jsonify({"success": True, "data": suggestions})
+
+
+@recipes_bp.route("/import-url", methods=["POST"])
+def import_from_url():
+    """Fetch a URL, extract recipe data via Bedrock, return structured recipe for the form."""
+    import requests as http_requests
+    data = request.get_json()
+    url = (data.get("url") or "").strip() if data else ""
+    if not url:
+        return jsonify({"success": False, "error": "URL is required"}), 400
+
+    logger.info(f"Importing recipe from URL: {url}")
+    try:
+        resp = http_requests.get(url, timeout=20, headers={
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.9",
+        })
+        page_text = resp.text
+        if len(page_text) < 500:
+            raise ValueError(f"Page too short ({len(page_text)} chars), likely blocked")
+        page_text = page_text[:30000]
+    except Exception as e:
+        logger.error(f"Failed to fetch URL: {e}")
+        return jsonify({"success": False, "error": "Could not fetch that URL"}), 400
+
+    prompt = f"""Extract the recipe from this webpage HTML. Return ONLY a JSON object with these fields:
+- title (string)
+- cuisine (string, best guess)
+- prep_time_mins (number)
+- servings (number)
+- ingredients: array of objects with name (string), quantity (number), unit (string)
+- instructions (string, step-by-step with "Step 1: ... Step 2: ..." format)
+- image_url (string, the main recipe image URL from the page, or null if not found)
+
+If this page does not contain a recipe, return {{"error": "No recipe found on this page"}}.
+Return ONLY valid JSON, no markdown, no explanation.
+
+WEBPAGE CONTENT:
+{page_text}"""
+
+    try:
+        raw = call_bedrock(prompt, max_tokens=4096)
+        text = raw.strip()
+        if text.startswith("```"):
+            lines = text.split("\n")
+            lines = [l for l in lines if not l.strip().startswith("```")]
+            text = "\n".join(lines).strip()
+        parsed = json.loads(text)
+        if "error" in parsed:
+            return jsonify({"success": False, "error": parsed["error"]}), 400
+        logger.info(f"Imported recipe: {parsed.get('title')}")
+        return jsonify({"success": True, "data": parsed})
+    except Exception as e:
+        logger.error(f"Recipe import Bedrock error: {e}")
+        return jsonify({"success": False, "error": "Failed to parse recipe from page"}), 500
+
+
+@recipes_bp.route("/<recipe_id>/image", methods=["GET"])
+def recipe_image(recipe_id):
+    """Return the image URL stored on the recipe record."""
+    recipe = get_recipe(recipe_id)
+    if not recipe:
+        return jsonify({"success": True, "data": {"image_url": None}})
+
+    image_url = recipe.get("image_url") or recipe.get("thumb") or None
+    return jsonify({"success": True, "data": {"image_url": image_url}})
 
 
 @recipes_bp.route("/<recipe_id>", methods=["GET"])

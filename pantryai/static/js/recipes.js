@@ -15,10 +15,11 @@ const addRecipeForm = document.getElementById("add-recipe-form");
 document.getElementById("toggle-add-recipe").addEventListener("click", () => {
     addRecipeForm.classList.toggle("open");
     if (addRecipeForm.classList.contains("open")) {
-        document.getElementById("recipe-title").focus();
+        document.getElementById("import-url").focus();
     }
 });
 document.getElementById("save-recipe-btn").addEventListener("click", saveRecipe);
+document.getElementById("import-url-btn").addEventListener("click", importFromUrl);
 
 function parseIngredientLine(line) {
     line = line.trim();
@@ -30,6 +31,51 @@ function parseIngredientLine(line) {
         return { name: m[3].trim(), quantity: qty, unit };
     }
     return { name: line, quantity: 1, unit: "count" };
+}
+
+async function importFromUrl() {
+    const urlInput = document.getElementById("import-url");
+    const statusEl = document.getElementById("import-status");
+    const url = urlInput.value.trim();
+    if (!url) { showToast("Enter a URL first", "error"); return; }
+
+    const btn = document.getElementById("import-url-btn");
+    btn.disabled = true;
+    btn.textContent = "Importing...";
+    statusEl.style.display = "block";
+    statusEl.style.color = "var(--text-secondary)";
+    statusEl.textContent = "Fetching and analyzing recipe page...";
+
+    try {
+        const resp = await apiFetch("/api/recipes/import-url", {
+            method: "POST",
+            body: { url },
+        });
+        const d = resp.data;
+        document.getElementById("recipe-title").value = d.title || "";
+        document.getElementById("recipe-cuisine").value = d.cuisine || "";
+        document.getElementById("recipe-prep").value = d.prep_time_mins || 30;
+        document.getElementById("recipe-servings").value = d.servings || 4;
+
+        if (d.ingredients && d.ingredients.length) {
+            document.getElementById("recipe-ingredients").value = d.ingredients
+                .map(i => `${i.quantity || 1} ${i.unit || "count"} ${i.name}`)
+                .join("\n");
+        }
+        document.getElementById("recipe-instructions").value = d.instructions || "";
+        document.getElementById("recipe-image-url").value = d.image_url || "";
+
+        statusEl.style.color = "var(--success)";
+        statusEl.textContent = `Imported "${d.title}". Review and click Save Recipe.`;
+        showToast("Recipe imported — review and save!", "success");
+    } catch (err) {
+        statusEl.style.color = "var(--danger)";
+        statusEl.textContent = err.message || "Import failed";
+        showToast(err.message, "error");
+    } finally {
+        btn.disabled = false;
+        btn.textContent = "Import";
+    }
 }
 
 async function saveRecipe() {
@@ -47,6 +93,7 @@ async function saveRecipe() {
         cuisine: document.getElementById("recipe-cuisine").value.trim(),
         prep_time_mins: parseInt(document.getElementById("recipe-prep").value) || 0,
         servings: parseInt(document.getElementById("recipe-servings").value) || 4,
+        image_url: document.getElementById("recipe-image-url").value.trim(),
     };
 
     try {
@@ -56,6 +103,9 @@ async function saveRecipe() {
         document.getElementById("recipe-ingredients").value = "";
         document.getElementById("recipe-instructions").value = "";
         document.getElementById("recipe-cuisine").value = "";
+        document.getElementById("recipe-image-url").value = "";
+        document.getElementById("import-url").value = "";
+        document.getElementById("import-status").style.display = "none";
         addRecipeForm.classList.remove("open");
         loadRecipes();
     } catch (err) {
@@ -188,6 +238,7 @@ function recipeCard(r) {
     html += `</div>`;
 
     html += `<div class="recipe-detail ${isExpanded ? 'open' : ''}" id="detail-${r.recipe_id}">`;
+    html += `<div class="recipe-image-slot" id="img-${r.recipe_id}"></div>`;
     if (r.ingredients && r.ingredients.length) {
         html += `<h4>Ingredients</h4><ul>`;
         for (const ing of r.ingredients) {
@@ -210,6 +261,23 @@ function toggleExpand(recipeId) {
     expandedId = expandedId === recipeId ? null : recipeId;
     const detail = document.getElementById(`detail-${recipeId}`);
     if (detail) detail.classList.toggle("open");
+
+    if (expandedId === recipeId) {
+        loadRecipeImage(recipeId);
+    }
+}
+
+async function loadRecipeImage(recipeId) {
+    const slot = document.getElementById(`img-${recipeId}`);
+    if (!slot || slot.dataset.loaded) return;
+    slot.dataset.loaded = "1";
+    try {
+        const resp = await apiFetch(`/api/recipes/${recipeId}/image`);
+        const url = resp.data && resp.data.image_url;
+        if (url) {
+            slot.innerHTML = `<img src="${escapeHtml(url)}" alt="Recipe photo" class="recipe-img" onerror="this.style.display='none'">`;
+        }
+    } catch { /* no image available */ }
 }
 
 async function toggleFav(recipeId) {

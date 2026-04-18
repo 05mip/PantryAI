@@ -14,6 +14,17 @@
 </div>
 
 <div class="inline-form" id="add-recipe-form">
+    <div class="import-row">
+        <div class="form-group" style="flex:1; margin-bottom:0;">
+            <label>Import from URL</label>
+            <div style="display:flex; gap:8px;">
+                <input type="text" id="import-url" placeholder="https://www.allrecipes.com/recipe/..." style="flex:1">
+                <button class="btn btn-secondary" id="import-url-btn" type="button">Import</button>
+            </div>
+        </div>
+    </div>
+    <div id="import-status" style="display:none; padding:8px 0; font-size:0.85rem;"></div>
+    <hr style="border:none; border-top:1px solid var(--border); margin:12px 0;">
     <div class="form-row">
         <div class="form-group" style="flex:2">
             <label>Title</label>
@@ -40,6 +51,7 @@
         <label>Instructions</label>
         <textarea id="recipe-instructions" rows="4" placeholder="Step-by-step instructions..."></textarea>
     </div>
+    <input type="hidden" id="recipe-image-url" value="">
     <button class="btn btn-primary" id="save-recipe-btn">Save Recipe</button>
 </div>
 
