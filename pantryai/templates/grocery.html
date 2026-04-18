@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Grocery List — PantryAI{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Grocery List</h1>
+    <div style="display:flex; gap:8px;">
+        <button class="btn btn-danger btn-sm" id="clear-checked-btn">Clear Checked</button>
+        <button class="btn btn-primary" id="to-pantry-btn">Add to Pantry</button>
+    </div>
+</div>
+
+<div class="inline-form open" id="add-grocery-form">
+    <div class="form-row">
+        <div class="form-group" style="flex:2">
+            <label>Item Name</label>
+            <input type="text" id="grocery-name" placeholder="e.g. Milk">
+        </div>
+        <div class="form-group" style="flex:1">
+            <label>Quantity</label>
+            <input type="number" id="grocery-qty" value="1" min="0" step="any">
+        </div>
+        <div class="form-group" style="flex:1">
+            <label>Unit</label>
+            <select id="grocery-unit">
+                <option value="count">count</option>
+                <option value="g">g</option>
+                <option value="kg">kg</option>
+                <option value="ml">ml</option>
+                <option value="L">L</option>
+                <option value="oz">oz</option>
+                <option value="lb">lb</option>
+                <option value="cups">cups</option>
+                <option value="tbsp">tbsp</option>
+                <option value="tsp">tsp</option>
+            </select>
+        </div>
+        <div class="form-group" style="justify-content:flex-end">
+            <label>&nbsp;</label>
+            <button class="btn btn-primary" id="add-grocery-btn">Add</button>
+        </div>
+    </div>
+</div>
+
+<div id="grocery-list"></div>
+
+<div class="suggestions-panel" id="suggestions-panel">
+    <div class="suggestions-header" id="suggestions-toggle">
+        Smart Suggestions
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>
+    <div class="suggestions-body" id="suggestions-body"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/grocery.js') }}"></script>
+{% endblock %}

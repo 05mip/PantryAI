@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Pantry — PantryAI{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>My Pantry</h1>
+    <div style="display:flex; gap:12px; align-items:center;">
+        <div class="search-bar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="pantry-search" placeholder="Filter items...">
+        </div>
+        <button class="btn btn-primary" id="toggle-add-form">+ Add Item</button>
+    </div>
+</div>
+
+<div class="inline-form" id="add-form">
+    <div class="form-row">
+        <div class="form-group" style="flex:2">
+            <label>Name</label>
+            <input type="text" id="add-name" placeholder="e.g. Chicken breast">
+        </div>
+        <div class="form-group" style="flex:1">
+            <label>Quantity</label>
+            <input type="number" id="add-qty" value="1" min="0" step="any">
+        </div>
+        <div class="form-group" style="flex:1">
+            <label>Unit</label>
+            <select id="add-unit">
+                <option value="count">count</option>
+                <option value="g">g</option>
+                <option value="kg">kg</option>
+                <option value="ml">ml</option>
+                <option value="L">L</option>
+                <option value="oz">oz</option>
+                <option value="lb">lb</option>
+                <option value="cups">cups</option>
+                <option value="tbsp">tbsp</option>
+                <option value="tsp">tsp</option>
+            </select>
+        </div>
+        <div class="form-group" style="flex:1">
+            <label>Category</label>
+            <select id="add-category">
+                <option value="produce">Produce</option>
+                <option value="dairy">Dairy</option>
+                <option value="meat">Meat</option>
+                <option value="seafood">Seafood</option>
+                <option value="dry goods">Dry Goods</option>
+                <option value="canned">Canned</option>
+                <option value="frozen">Frozen</option>
+                <option value="spices">Spices</option>
+                <option value="condiments">Condiments</option>
+                <option value="beverages">Beverages</option>
+                <option value="bakery">Bakery</option>
+                <option value="other">Other</option>
+            </select>
+        </div>
+        <div class="form-group" style="flex:1">
+            <label>Expiry (opt.)</label>
+            <input type="date" id="add-expiry">
+        </div>
+        <div class="form-group" style="justify-content:flex-end">
+            <label>&nbsp;</label>
+            <button class="btn btn-primary" id="add-item-btn">Add</button>
+        </div>
+    </div>
+</div>
+
+<div id="pantry-list"></div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/pantry.js') }}"></script>
+{% endblock %}

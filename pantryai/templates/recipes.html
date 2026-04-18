@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Recipes — PantryAI{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Recipes</h1>
+    <div class="search-bar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="recipe-search" placeholder="Search recipes...">
+    </div>
+</div>
+
+<div class="tabs">
+    <button class="tab active" data-tab="matches">What I Can Make</button>
+    <button class="tab" data-tab="near">Near Matches (1-4 away)</button>
+</div>
+
+<div class="filter-row">
+    <label>Cuisine:</label>
+    <select id="filter-cuisine">
+        <option value="">All</option>
+    </select>
+    <div id="filter-missing-wrap" style="display:none;">
+        <label>Max missing:</label>
+        <input type="range" id="filter-missing" min="1" max="4" value="4" style="width:100px;">
+        <span id="missing-val">4</span>
+    </div>
+    <label style="display:flex; align-items:center; gap:4px; cursor:pointer;">
+        <input type="checkbox" id="filter-favs"> Favorites first
+    </label>
+</div>
+
+<div class="recipe-grid" id="recipe-grid"></div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/recipes.js') }}"></script>
+{% endblock %}

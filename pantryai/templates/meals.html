@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Meal Planner — PantryAI{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Meal Planner</h1>
+</div>
+
+<div class="week-nav">
+    <button class="btn btn-secondary btn-sm" id="prev-week">&larr; Prev</button>
+    <h2 id="week-label">Loading...</h2>
+    <button class="btn btn-secondary btn-sm" id="next-week">Next &rarr;</button>
+</div>
+
+<div class="meal-grid" id="meal-grid"></div>
+
+<div class="grocery-preview" id="grocery-preview-section" style="margin-top:24px;">
+    <button class="btn btn-primary" id="preview-btn">Generate grocery list for this week</button>
+    <div id="preview-results" style="margin-top:16px;"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/meals.js') }}"></script>
+{% endblock %}
