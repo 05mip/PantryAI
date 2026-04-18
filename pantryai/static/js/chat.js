@@ -28,6 +28,7 @@
         const fab = document.getElementById("chat-fab");
         const panel = document.getElementById("chat-panel");
         const closeBtn = document.getElementById("chat-close");
+        const clearBtn = document.getElementById("chat-clear");
         const form = document.getElementById("chat-form");
         const input = document.getElementById("chat-input");
 
@@ -41,6 +42,13 @@
 
         closeBtn.addEventListener("click", () => {
             panel.classList.remove("open");
+        });
+
+        clearBtn.addEventListener("click", () => {
+            conversationId = null;
+            renderWelcome();
+            input.value = "";
+            input.focus();
         });
 
         form.addEventListener("submit", (e) => {
@@ -227,42 +235,65 @@
         let filled = 0;
         let errors = 0;
 
+        const slots = [];
         for (const day of DAYS) {
             if (!data[day]) continue;
             for (const meal of MEALS) {
                 const slot = data[day][meal];
                 if (!slot || !slot.title) continue;
+                slots.push({ day, meal, slot, recipeId: slot.recipe_id || null });
+            }
+        }
 
-                let recipeId = slot.recipe_id;
-                if (!recipeId) {
-                    try {
-                        const created = await apiFetch("/api/recipes", {
-                            method: "POST",
-                            body: {
-                                title: slot.title,
-                                ingredients: slot.ingredients || [],
-                                instructions: slot.instructions || "",
-                                cuisine: slot.cuisine || "",
-                                servings: slot.servings || 1,
-                            },
-                        });
-                        recipeId = created.data.recipe_id;
-                    } catch {
-                        errors++;
-                        continue;
-                    }
+        const needLookup = slots.filter((s) => !s.recipeId);
+        for (const entry of needLookup) {
+            try {
+                const resp = await apiFetch(`/api/recipes/search?q=${encodeURIComponent(entry.slot.title)}&limit=1`);
+                const matches = resp.data || [];
+                if (matches.length && matches[0].title.toLowerCase() === entry.slot.title.toLowerCase()) {
+                    entry.recipeId = matches[0].recipe_id;
                 }
+            } catch { /* will generate below */ }
+        }
 
-                const slotId = `${week}_${day}_${meal}`;
-                try {
-                    await apiFetch(`/api/meals/${slotId}`, {
-                        method: "PUT",
-                        body: { recipe_id: recipeId, servings: slot.servings || 1 },
-                    });
-                    filled++;
-                } catch {
-                    errors++;
+        const needGenerate = needLookup.filter((s) => !s.recipeId);
+        if (needGenerate.length > 0) {
+            actionsDiv.innerHTML = `<span class="action-loading">Generating ${needGenerate.length} new recipes...</span>`;
+            const titles = [...new Set(needGenerate.map((s) => s.slot.title))];
+            try {
+                const genResp = await apiFetch("/api/recipes/generate", {
+                    method: "POST",
+                    body: { titles },
+                });
+                const created = genResp.data || [];
+                const titleMap = {};
+                for (const r of created) {
+                    titleMap[r.title.toLowerCase()] = r.recipe_id;
                 }
+                for (const entry of needGenerate) {
+                    const id = titleMap[entry.slot.title.toLowerCase()];
+                    if (id) entry.recipeId = id;
+                }
+            } catch {
+                /* individual failures handled below */
+            }
+        }
+
+        actionsDiv.innerHTML = '<span class="action-loading">Filling slots...</span>';
+        for (const entry of slots) {
+            if (!entry.recipeId) {
+                errors++;
+                continue;
+            }
+            const slotId = `${week}-${entry.day}-${entry.meal}`;
+            try {
+                await apiFetch(`/api/meals/${slotId}`, {
+                    method: "PUT",
+                    body: { recipe_id: entry.recipeId, servings: entry.slot.servings || 1 },
+                });
+                filled++;
+            } catch {
+                errors++;
             }
         }
 

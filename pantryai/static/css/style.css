@@ -685,11 +685,15 @@ input:focus, select:focus, textarea:focus {
     text-align: center;
 }
 
+.meal-grid-wrapper {
+    overflow-x: auto;
+}
+
 .meal-grid {
     display: grid;
     grid-template-columns: 80px repeat(7, 1fr);
     gap: 4px;
-    overflow-x: auto;
+    min-width: 700px;
 }
 
 .meal-grid .day-header {
@@ -706,6 +710,17 @@ input:focus, select:focus, textarea:focus {
     font-size: 0.75rem;
     color: var(--text-secondary);
     display: block;
+}
+
+.meal-grid .day-header.today {
+    background: var(--primary-bg);
+    color: var(--primary-dark);
+    font-weight: 700;
+}
+
+.meal-cell.today {
+    border-color: var(--primary-light);
+    background: rgba(45, 106, 79, 0.03);
 }
 
 .meal-grid .meal-label {
@@ -788,17 +803,15 @@ input:focus, select:focus, textarea:focus {
 }
 
 .meal-search-results {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    right: 0;
+    position: fixed;
     background: var(--bg);
     border: 1px solid var(--border);
     border-radius: var(--radius);
-    z-index: 50;
-    max-height: 200px;
+    z-index: 150;
+    max-height: 220px;
     overflow-y: auto;
     box-shadow: var(--shadow-lg);
+    width: 220px;
 }
 
 .meal-search-results .result-item {
@@ -1057,19 +1070,33 @@ input:focus, select:focus, textarea:focus {
     gap: 6px;
 }
 
+.chat-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.chat-header .header-btn,
 .chat-header .close-btn {
     background: none;
     border: none;
     color: #fff;
-    font-size: 1.3rem;
     cursor: pointer;
     padding: 4px 6px;
     border-radius: 6px;
     line-height: 1;
     opacity: 0.8;
     transition: opacity 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
+.chat-header .close-btn {
+    font-size: 1.3rem;
+}
+
+.chat-header .header-btn:hover,
 .chat-header .close-btn:hover {
     opacity: 1;
     background: rgba(255,255,255,0.15);

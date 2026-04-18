@@ -1,3 +1,4 @@
+import json
 import logging
 
 from flask import Blueprint, request, jsonify, g
@@ -8,7 +9,7 @@ from services.dynamo import (
 )
 from services.matching import score_recipe
 from services.opensearch import search_recipes as os_search
-from services.bedrock import get_smart_grocery_suggestions
+from services.bedrock import get_smart_grocery_suggestions, call_bedrock
 
 logger = logging.getLogger("pantryai")
 recipes_bp = Blueprint("recipes", __name__, url_prefix="/api/recipes")
@@ -40,6 +41,71 @@ def add_recipe():
         servings=data.get("servings", 4),
     )
     return jsonify({"success": True, "data": recipe}), 201
+
+
+@recipes_bp.route("/generate", methods=["POST"])
+def generate_recipes():
+    data = request.get_json()
+    titles = data.get("titles", []) if data else []
+    if not titles or not isinstance(titles, list):
+        return jsonify({"success": False, "error": "titles array is required"}), 400
+    titles = [t.strip() for t in titles if t.strip()][:10]
+    if not titles:
+        return jsonify({"success": False, "error": "No valid titles provided"}), 400
+
+    logger.info(f"Generating {len(titles)} recipes: {titles}")
+
+    prompt = f"""Generate complete recipes for these dishes. For each recipe provide:
+- title (use the exact title given)
+- cuisine (best guess)
+- prep_time_mins (realistic estimate)
+- servings (default 4)
+- ingredients: array of objects with name, quantity (number), unit
+- instructions: step-by-step as a single string with "Step 1: ... Step 2: ..." format
+
+Dishes:
+{json.dumps(titles)}
+
+Return ONLY a JSON object with a "recipes" array. No markdown, no explanation.
+Example format:
+{{"recipes": [{{"title": "...", "cuisine": "...", "prep_time_mins": 30, "servings": 4, "ingredients": [{{"name": "chicken breast", "quantity": 2, "unit": "lb"}}], "instructions": "Step 1: ..."}}]}}"""
+
+    try:
+        raw = call_bedrock(prompt, max_tokens=8192)
+        text = raw.strip()
+        if text.startswith("```"):
+            lines = text.split("\n")
+            lines = [l for l in lines if not l.strip().startswith("```")]
+            text = "\n".join(lines).strip()
+        parsed = json.loads(text)
+        recipe_defs = parsed.get("recipes", [])
+        logger.info(f"Bedrock returned {len(recipe_defs)} recipe definitions")
+    except Exception as e:
+        logger.error(f"Recipe generation Bedrock error: {e}")
+        return jsonify({"success": False, "error": "Failed to generate recipes"}), 500
+
+    created = []
+    for rd in recipe_defs:
+        ings = rd.get("ingredients", [])
+        if not ings:
+            logger.warning(f"Skipping recipe '{rd.get('title')}' — no ingredients")
+            continue
+        try:
+            recipe = create_recipe(
+                title=rd.get("title", "Untitled"),
+                ingredients=ings,
+                instructions=rd.get("instructions", ""),
+                cuisine=rd.get("cuisine", ""),
+                prep_time_mins=rd.get("prep_time_mins", 0),
+                servings=rd.get("servings", 4),
+            )
+            created.append(recipe)
+            logger.info(f"Created recipe: {recipe.get('title')} ({recipe.get('recipe_id')})")
+        except Exception as e:
+            logger.error(f"Failed to save generated recipe '{rd.get('title')}': {e}")
+
+    logger.info(f"Generate endpoint done: {len(created)} created out of {len(titles)} requested")
+    return jsonify({"success": True, "data": created}), 201
 
 
 def _score_search_results(results, user_id):

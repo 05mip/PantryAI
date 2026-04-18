@@ -45,15 +45,22 @@ async function loadMeals() {
     }
 }
 
+function getTodayDayName() {
+    const names = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    return names[new Date().getDay()];
+}
+
 function renderGrid() {
     if (!mealData) return;
     const g = mealData.grid;
+    const today = currentWeekOffset === 0 ? getTodayDayName() : null;
     let html = "";
 
     html += `<div></div>`;
     for (const day of DAYS) {
         const info = g[day] || {};
-        html += `<div class="day-header">${day}<span class="date">${info.display_date || ""}</span></div>`;
+        const isToday = day === today;
+        html += `<div class="day-header${isToday ? " today" : ""}">${day}<span class="date">${info.display_date || ""}</span></div>`;
     }
 
     for (const meal of MEALS) {
@@ -63,8 +70,9 @@ function renderGrid() {
             const slot = info.meals ? info.meals[meal] : null;
             const slotId = `${mealData.week}-${day}-${meal}`;
             const isSearching = searchingSlot === slotId;
+            const isToday = day === today;
 
-            html += `<div class="meal-cell" id="cell-${slotId}" onclick="cellClick('${slotId}')">`;
+            html += `<div class="meal-cell${isToday ? " today" : ""}" id="cell-${slotId}" onclick="cellClick('${slotId}')">`;
             if (isSearching) {
                 html += `<div class="meal-search">
                     <input type="text" id="search-${slotId}" placeholder="Search..." oninput="onMealSearch(event, '${slotId}')" onclick="event.stopPropagation()">
@@ -102,6 +110,16 @@ function cellClick(slotId) {
     renderGrid();
 }
 
+function positionDropdown(slotId) {
+    const input = document.getElementById(`search-${slotId}`);
+    const resultsEl = document.getElementById(`results-${slotId}`);
+    if (!input || !resultsEl) return;
+    const rect = input.getBoundingClientRect();
+    resultsEl.style.left = rect.left + "px";
+    resultsEl.style.top = (rect.bottom + 2) + "px";
+    resultsEl.style.width = Math.max(rect.width, 200) + "px";
+}
+
 function onMealSearch(event, slotId) {
     clearTimeout(searchTimeout);
     const q = event.target.value.trim();
@@ -110,17 +128,20 @@ function onMealSearch(event, slotId) {
         resultsEl.innerHTML = "";
         return;
     }
+    positionDropdown(slotId);
     searchTimeout = setTimeout(async () => {
         try {
             const resp = await apiFetch(`/api/recipes/search?q=${encodeURIComponent(q)}&limit=8`);
             const recipes = resp.data || [];
             if (recipes.length === 0) {
                 resultsEl.innerHTML = '<div class="result-item" style="color:var(--text-secondary)">No recipes found</div>';
+                positionDropdown(slotId);
                 return;
             }
             resultsEl.innerHTML = recipes.map(r =>
                 `<div class="result-item" onclick="event.stopPropagation(); selectRecipe('${slotId}', '${r.recipe_id}', '${escapeHtml(r.title || "").replace(/'/g, "\\'")}')">${escapeHtml(r.title || "")}</div>`
             ).join("");
+            positionDropdown(slotId);
         } catch (err) {
             resultsEl.innerHTML = `<div class="result-item" style="color:var(--danger)">Search failed</div>`;
         }
@@ -155,7 +176,15 @@ async function updateServings(slotId, recipeId, title, servings) {
 async function clearSlot(slotId) {
     try {
         await apiFetch(`/api/meals/${slotId}`, { method: "DELETE" });
-        await loadMeals();
+        const parts = slotId.split("-");
+        if (parts.length >= 4 && mealData) {
+            const day = parts[2];
+            const meal = parts[3];
+            if (mealData.grid[day] && mealData.grid[day].meals) {
+                mealData.grid[day].meals[meal] = null;
+            }
+        }
+        renderGrid();
     } catch (err) {
         showToast(err.message, "error");
     }
@@ -233,5 +262,9 @@ document.addEventListener("click", (e) => {
         renderGrid();
     }
 });
+
+document.addEventListener("scroll", () => {
+    if (searchingSlot) positionDropdown(searchingSlot);
+}, true);
 
 loadMeals();
