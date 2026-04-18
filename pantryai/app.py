@@ -39,7 +39,7 @@ def set_default_user():
 
 @app.route("/")
 def index():
-    return redirect("/pantry")
+    return render_template("landing.html")
 
 
 @app.route("/pantry")
