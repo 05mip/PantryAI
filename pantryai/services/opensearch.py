@@ -1,7 +1,9 @@
+import json
 import logging
+import os
+
 from opensearchpy import OpenSearch, RequestsHttpConnection
 from requests_aws4auth import AWS4Auth
-import boto3
 
 from config import OPENSEARCH, AWS_REGION
 
@@ -20,14 +22,22 @@ def _get_client():
         logger.warning("OpenSearch endpoint not configured; search will be unavailable.")
         return None
 
-    credentials = boto3.Session().get_credentials()
-    awsauth = AWS4Auth(
-        credentials.access_key,
-        credentials.secret_key,
-        AWS_REGION,
-        "aoss",
-        session_token=credentials.token,
-    )
+    access_key = os.environ.get("AWS_ACCESS_KEY_ID", "")
+    secret_key = os.environ.get("AWS_SECRET_ACCESS_KEY", "")
+    session_token = os.environ.get("AWS_SESSION_TOKEN", "")
+
+    if not access_key or not secret_key:
+        logger.warning("AWS credentials not found in env vars for OpenSearch.")
+        return None
+
+    auth_kwargs = {
+        "region": AWS_REGION,
+        "service": "aoss",
+    }
+    if session_token:
+        awsauth = AWS4Auth(access_key, secret_key, AWS_REGION, "aoss", session_token=session_token)
+    else:
+        awsauth = AWS4Auth(access_key, secret_key, AWS_REGION, "aoss")
 
     host = endpoint.replace("https://", "").replace("http://", "").rstrip("/")
     _client = OpenSearch(
@@ -46,18 +56,27 @@ def ensure_index():
     if not client:
         return
     index = OPENSEARCH["index"]
-    if not client.indices.exists(index):
-        client.indices.create(index, body={
-            "mappings": {
-                "properties": {
-                    "title": {"type": "text", "analyzer": "standard"},
-                    "ingredients_text": {"type": "text", "analyzer": "standard"},
-                    "cuisine": {"type": "keyword"},
-                    "tags": {"type": "keyword"},
+    try:
+        exists = client.indices.exists(index)
+    except Exception as e:
+        logger.error(f"Failed to check index existence: {e}")
+        exists = False
+
+    if not exists:
+        try:
+            client.indices.create(index, body={
+                "mappings": {
+                    "properties": {
+                        "title": {"type": "text", "analyzer": "standard"},
+                        "ingredients_text": {"type": "text", "analyzer": "standard"},
+                        "cuisine": {"type": "keyword"},
+                        "tags": {"type": "keyword"},
+                    }
                 }
-            }
-        })
-        logger.info(f"Created OpenSearch index: {index}")
+            })
+            logger.info(f"Created OpenSearch index: {index}")
+        except Exception as e:
+            logger.error(f"Failed to create index: {e}")
 
 
 def index_recipe(recipe):
@@ -101,9 +120,15 @@ def bulk_index_recipes(recipes):
         })
 
     if actions:
-        body = "\n".join([__import__("json").dumps(a) for a in actions]) + "\n"
-        client.bulk(body=body)
-        logger.info(f"Bulk indexed {len(recipes)} recipes to OpenSearch")
+        body = "\n".join([json.dumps(a) for a in actions]) + "\n"
+        resp = client.bulk(body=body)
+        errors = resp.get("errors", False)
+        if errors:
+            for item in resp.get("items", []):
+                err = item.get("index", {}).get("error")
+                if err:
+                    logger.error(f"Bulk index error: {err}")
+        logger.info(f"Bulk indexed {len(recipes)} recipes to OpenSearch (errors={errors})")
 
 
 def search_recipes(query, limit=20):
