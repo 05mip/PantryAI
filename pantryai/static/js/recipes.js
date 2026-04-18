@@ -11,6 +11,58 @@ const missingSlider = document.getElementById("filter-missing");
 const missingVal = document.getElementById("missing-val");
 const favsCheck = document.getElementById("filter-favs");
 
+const addRecipeForm = document.getElementById("add-recipe-form");
+document.getElementById("toggle-add-recipe").addEventListener("click", () => {
+    addRecipeForm.classList.toggle("open");
+    if (addRecipeForm.classList.contains("open")) {
+        document.getElementById("recipe-title").focus();
+    }
+});
+document.getElementById("save-recipe-btn").addEventListener("click", saveRecipe);
+
+function parseIngredientLine(line) {
+    line = line.trim();
+    if (!line) return null;
+    const m = line.match(/^([\d½¼¾⅓⅔⅛/.\- ]*)\s*(cups?|tbsp|tsp|oz|lb|lbs|g|kg|ml|l|cloves?|pieces?|cans?|count)?\s+(.+)$/i);
+    if (m && m[3]) {
+        const qty = parseFloat(m[1]) || 1;
+        const unit = (m[2] || "count").toLowerCase();
+        return { name: m[3].trim(), quantity: qty, unit };
+    }
+    return { name: line, quantity: 1, unit: "count" };
+}
+
+async function saveRecipe() {
+    const title = document.getElementById("recipe-title").value.trim();
+    if (!title) { showToast("Title is required", "error"); return; }
+
+    const rawLines = document.getElementById("recipe-ingredients").value.split("\n");
+    const ingredients = rawLines.map(parseIngredientLine).filter(Boolean);
+    if (ingredients.length === 0) { showToast("Add at least one ingredient", "error"); return; }
+
+    const payload = {
+        title,
+        ingredients,
+        instructions: document.getElementById("recipe-instructions").value.trim(),
+        cuisine: document.getElementById("recipe-cuisine").value.trim(),
+        prep_time_mins: parseInt(document.getElementById("recipe-prep").value) || 0,
+        servings: parseInt(document.getElementById("recipe-servings").value) || 4,
+    };
+
+    try {
+        await apiFetch("/api/recipes", { method: "POST", body: payload });
+        showToast(`Recipe "${title}" added!`);
+        document.getElementById("recipe-title").value = "";
+        document.getElementById("recipe-ingredients").value = "";
+        document.getElementById("recipe-instructions").value = "";
+        document.getElementById("recipe-cuisine").value = "";
+        addRecipeForm.classList.remove("open");
+        loadRecipes();
+    } catch (err) {
+        showToast(err.message, "error");
+    }
+}
+
 document.querySelectorAll(".tab").forEach(tab => {
     tab.addEventListener("click", () => {
         document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));

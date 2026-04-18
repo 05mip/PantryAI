@@ -59,6 +59,14 @@ def clear_checked():
     return jsonify({"success": True, "data": {"cleared": count}})
 
 
+@grocery_bp.route("/all", methods=["DELETE"])
+def clear_all():
+    items = list_grocery(g.user_id)
+    for item in items:
+        delete_grocery_item(g.user_id, item["item_id"])
+    return jsonify({"success": True, "data": {"cleared": len(items)}})
+
+
 @grocery_bp.route("/from-recipe/<recipe_id>", methods=["POST"])
 def from_recipe(recipe_id):
     recipe = get_recipe(recipe_id)

@@ -9,6 +9,7 @@ document.getElementById("grocery-name").addEventListener("keydown", e => {
     if (e.key === "Enter") addItem();
 });
 document.getElementById("clear-checked-btn").addEventListener("click", clearChecked);
+document.getElementById("clear-all-btn").addEventListener("click", clearAll);
 document.getElementById("to-pantry-btn").addEventListener("click", toPantry);
 document.getElementById("suggestions-toggle").addEventListener("click", toggleSuggestions);
 
@@ -69,6 +70,21 @@ async function clearChecked() {
         const resp = await apiFetch("/api/grocery/checked", { method: "DELETE" });
         await loadGrocery();
         showToast(`${resp.data.cleared} checked items cleared`);
+    } catch (err) {
+        showToast(err.message, "error");
+    }
+}
+
+async function clearAll() {
+    if (groceryItems.length === 0) {
+        showToast("List is already empty", "error");
+        return;
+    }
+    if (!confirm(`Clear all ${groceryItems.length} items from your grocery list?`)) return;
+    try {
+        const resp = await apiFetch("/api/grocery/all", { method: "DELETE" });
+        await loadGrocery();
+        showToast(`${resp.data.cleared} items cleared`);
     } catch (err) {
         showToast(err.message, "error");
     }

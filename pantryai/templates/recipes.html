@@ -4,10 +4,43 @@
 {% block content %}
 <div class="page-header">
     <h1>Recipes</h1>
-    <div class="search-bar">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input type="text" id="recipe-search" placeholder="Search recipes...">
+    <div style="display:flex; gap:12px; align-items:center;">
+        <div class="search-bar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="recipe-search" placeholder="Search recipes...">
+        </div>
+        <button class="btn btn-primary" id="toggle-add-recipe">+ Add Recipe</button>
     </div>
+</div>
+
+<div class="inline-form" id="add-recipe-form">
+    <div class="form-row">
+        <div class="form-group" style="flex:2">
+            <label>Title</label>
+            <input type="text" id="recipe-title" placeholder="e.g. Chicken Stir Fry">
+        </div>
+        <div class="form-group" style="flex:1">
+            <label>Cuisine</label>
+            <input type="text" id="recipe-cuisine" placeholder="e.g. Chinese">
+        </div>
+        <div class="form-group" style="flex:0.5">
+            <label>Prep (min)</label>
+            <input type="number" id="recipe-prep" value="30" min="0">
+        </div>
+        <div class="form-group" style="flex:0.5">
+            <label>Servings</label>
+            <input type="number" id="recipe-servings" value="4" min="1">
+        </div>
+    </div>
+    <div class="form-group">
+        <label>Ingredients (one per line: name, or quantity unit name)</label>
+        <textarea id="recipe-ingredients" rows="5" placeholder="2 cups rice&#10;1 lb chicken breast&#10;3 cloves garlic&#10;soy sauce"></textarea>
+    </div>
+    <div class="form-group">
+        <label>Instructions</label>
+        <textarea id="recipe-instructions" rows="4" placeholder="Step-by-step instructions..."></textarea>
+    </div>
+    <button class="btn btn-primary" id="save-recipe-btn">Save Recipe</button>
 </div>
 
 <div class="tabs">

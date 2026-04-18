@@ -3,7 +3,7 @@ import logging
 from flask import Blueprint, request, jsonify, g
 
 from services.dynamo import (
-    list_recipes, get_recipe, list_all_recipes_cached,
+    list_recipes, get_recipe, list_all_recipes_cached, create_recipe,
     list_pantry, toggle_favorite, list_favorites, get_user_favorite_ids,
 )
 from services.matching import score_recipe
@@ -22,6 +22,47 @@ def get_recipes():
     return jsonify({"success": True, "data": items, "total": total})
 
 
+@recipes_bp.route("", methods=["POST"])
+def add_recipe():
+    data = request.get_json()
+    if not data or not data.get("title"):
+        return jsonify({"success": False, "error": "Title is required"}), 400
+    if not data.get("ingredients") or not isinstance(data["ingredients"], list):
+        return jsonify({"success": False, "error": "At least one ingredient is required"}), 400
+
+    recipe = create_recipe(
+        title=data["title"],
+        ingredients=data["ingredients"],
+        instructions=data.get("instructions", ""),
+        cuisine=data.get("cuisine", ""),
+        tags=data.get("tags", []),
+        prep_time_mins=data.get("prep_time_mins", 0),
+        servings=data.get("servings", 4),
+    )
+    return jsonify({"success": True, "data": recipe}), 201
+
+
+def _score_search_results(results, user_id):
+    """Add pantry match scores to a list of search results."""
+    pantry_items = list_pantry(user_id)
+    fav_ids = get_user_favorite_ids(user_id)
+    scored = []
+    for r in results:
+        ingredients = r.get("ingredients", [])
+        if ingredients:
+            result = score_recipe(pantry_items, ingredients)
+            r["match_score"] = result["score"]
+            r["matched_ingredients"] = result["matched"]
+            r["missing_ingredients"] = result["missing"]
+        else:
+            r["match_score"] = 0
+            r["matched_ingredients"] = []
+            r["missing_ingredients"] = []
+        r["is_favorite"] = r.get("recipe_id", "") in fav_ids
+        scored.append(r)
+    return scored
+
+
 @recipes_bp.route("/search", methods=["GET"])
 def search():
     q = request.args.get("q", "").strip()
@@ -31,7 +72,14 @@ def search():
     limit = request.args.get("limit", 20, type=int)
     results = os_search(q, limit=limit)
 
-    if not results:
+    if results:
+        full_results = []
+        for hit in results:
+            recipe = get_recipe(hit["recipe_id"])
+            if recipe:
+                full_results.append(recipe)
+        results = full_results
+    else:
         all_recipes, _ = list_recipes(limit=500, offset=0)
         q_lower = q.lower()
         results = [
@@ -40,6 +88,7 @@ def search():
             or any(q_lower in ing.get("name", "").lower() for ing in r.get("ingredients", []))
         ][:limit]
 
+    results = _score_search_results(results[:limit], g.user_id)
     return jsonify({"success": True, "data": results})
 
 

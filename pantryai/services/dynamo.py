@@ -194,6 +194,33 @@ def list_all_recipes_cached():
     return items
 
 
+def create_recipe(title, ingredients, instructions="", cuisine="", tags=None, prep_time_mins=0, servings=4):
+    """Create a new recipe from user input."""
+    recipe_id = _new_id()
+    recipe = {
+        "recipe_id": recipe_id,
+        "title": title.strip(),
+        "ingredients": [
+            {
+                "name": ing.get("name", "").lower().strip(),
+                "quantity": _to_decimal(ing.get("quantity", 1)),
+                "unit": ing.get("unit", "count"),
+            }
+            for ing in ingredients if ing.get("name")
+        ],
+        "instructions": instructions.strip(),
+        "cuisine": cuisine.strip(),
+        "prep_time_mins": _to_decimal(prep_time_mins),
+        "servings": _to_decimal(servings),
+        "created_at": _now_iso(),
+    }
+    if tags:
+        recipe["tags"] = set(tags)
+    _table("recipes").put_item(Item=recipe)
+    _recipe_cache["data"] = None
+    return _from_decimal(recipe)
+
+
 def put_recipe(recipe):
     """Write a recipe item (used by seeding script)."""
     clean = {}
