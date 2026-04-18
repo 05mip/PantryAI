@@ -23,11 +23,13 @@ from routes.pantry import pantry_bp
 from routes.recipes import recipes_bp
 from routes.grocery import grocery_bp
 from routes.meals import meals_bp
+from routes.chat import chat_bp
 
 app.register_blueprint(pantry_bp)
 app.register_blueprint(recipes_bp)
 app.register_blueprint(grocery_bp)
 app.register_blueprint(meals_bp)
+app.register_blueprint(chat_bp)
 
 
 @app.before_request

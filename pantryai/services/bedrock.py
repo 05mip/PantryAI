@@ -34,6 +34,27 @@ def call_bedrock(prompt, max_tokens=4096):
         raise
 
 
+def call_bedrock_conversation(system_prompt, messages, max_tokens=8192):
+    """Multi-turn conversation with a system prompt."""
+    try:
+        response = bedrock_runtime.invoke_model(
+            modelId=BEDROCK["model_id"],
+            contentType="application/json",
+            accept="application/json",
+            body=json.dumps({
+                "anthropic_version": "bedrock-2023-05-31",
+                "max_tokens": max_tokens,
+                "system": system_prompt,
+                "messages": messages,
+            }),
+        )
+        body = json.loads(response["body"].read())
+        return body["content"][0]["text"]
+    except Exception as e:
+        logger.error(f"Bedrock conversation call failed: {e}")
+        raise
+
+
 def get_smart_grocery_suggestions(missing_by_recipe):
     """
     missing_by_recipe: dict mapping recipe_title -> list of missing ingredient names

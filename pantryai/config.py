@@ -14,7 +14,7 @@ S3_BUCKETS = {
 }
 
 BEDROCK = {
-    "model_id": "anthropic.claude-sonnet-4-5",
+    "model_id": "us.anthropic.claude-sonnet-4-6",
     "region": os.environ.get("AWS_REGION", "us-west-2"),
 }
 
